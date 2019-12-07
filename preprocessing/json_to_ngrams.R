@@ -7,14 +7,23 @@ library(ggplot2)
 library(openNLP)
 library(udpipe)
 
+location <- "home" #set "home" or "work"
+
+if (location == "home") {
+  data_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_raw/"
+  work_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_work/"
+  mat_path <- ""
+  out_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/output/"
+} else if (location == "work") {
+  data_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_raw/"
+  work_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_work/"
+  mat_path <- ""
+  out_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/output/"
+} else {
+  print("Specify location")
+}
+
 # JSON TO CSV
-
-
-data_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_raw/"
-work_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_work/"
-mat_path <- ""
-out_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/output/"
-
 filepath_mckin <- paste0(data_path, "mckin_articles.json")
 filepath_ey <- paste0(data_path, "ey_articles.json")
 filepath_bcg <- paste0(data_path, "bcg_articles.json")
@@ -138,11 +147,12 @@ cons_bi_anno <- top_bigrams_tfidf %>%
          word2pos = ...2) %>%
   select(everything(), -...1, -...2) %>%
   filter(word1pos == "NOUN" | word2pos == "NOUN")
-         
+
+cons_bigrams <- cons_bi_anno$bigram         
 
 ## NGRAMS
 
-mckin_ngram <- mckin_df %>%
+cons_ngram <- cons_df %>%
   unnest_tokens(sentence, text, token = stringr::str_split, pattern = "\\.", to_lower = FALSE) %>%
   unnest_tokens(sentence, sentence, token = stringr::str_split, pattern = "\\?", to_lower = FALSE) %>%
   unnest_tokens(sentence, sentence, token = stringr::str_split, pattern = "\\:", to_lower = FALSE) %>%
@@ -151,14 +161,57 @@ mckin_ngram <- mckin_df %>%
   mutate(title = paste0(title, " - ", as.character(sent_num))) %>%
   unnest_tokens(ngrams, sentence, token = "ngrams", n = 10, to_lower = FALSE)
 
-## UDLED NØGLEORD - TF-IDF?
+## CONVERTER NGRAMS TIL TOKEN-VEKTORER
 
-## CONVERTER NGRAMS TIL VEKTORER
+## CHECK FOR BIGRAMS
 
-## FILTRER NGRAMS-VECTOR UD FRA NØGLEORDSINDHOLD
+# FUNCTION
+bigram_insert <- function(tokens, bigrams) {
+  tokens_lower = str_to_lower(tokens)
+  i = 1
+  while (i + 1 <= length(tokens)) {
+    bigram = paste(tokens_lower[i], tokens_lower[i + 1], sep = " ")
+    if (bigram %in% bigrams){
+      tokens[i] = bigram
+      tokens[i + 1] = NA
+    }
+    i = i + 1
+  }
+  tokens <- tokens[!is.na(tokens)]
+  return(tokens)
+}
 
-## CENTRER NGRAMS-VECTOR IFT. NØGLEORD
 
 ## PRE-PROCES NGRAMS-VECTOR: tal, symboler, stopord
+stop_custom <- c("")
+act_stop <- c(stopwords("english"), stop_custom)
 
-## EDGE-LIST FORMAT?
+tokenize_proces <- function(text, stopvec, bigrams){
+  text_nopunct = removePunctuation(text)
+  text_nonumb = removeNumbers(text_nopunct)
+  text_lenfilt = str_replace_all(text_nonumb, "\\b[[:lower:]]{1,2}(\\s|$)|\\b[[:upper:]]{1}(\\s|$)", "")
+  tokens = Boost_tokenizer(text_lenfilt)
+  
+  tokens_lower = str_to_lower(tokens)
+  
+  tokens = tokens[!(str_to_lower(tokens) %in% stopvec)]
+  
+  tokens = bigram_insert(tokens, bigrams)
+
+  return(tokens)
+}
+
+## TOKENIZE
+
+cons_tokens <- cons_ngram %>%
+  mutate(tokens = map(ngrams, tokenize_proces, stopvec = act_stop, bigrams = cons_bigrams))
+
+cons_tokens$tokens <- map_chr(cons_tokens$tokens, paste, collapse = ", ")
+
+cons_tokens <- cons_tokens %>%
+  distinct(title, tokens, .keep_all = TRUE)
+
+## EDGE-LIST FORMAT? - HVORDAN GEMMES VEKTORER TIL AT BLIVE LÆST SOM LISTER I PYTHON?
+
+
+## UDLED NØGLEORD - TF-IDF?
