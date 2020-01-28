@@ -7,7 +7,7 @@ library(ggplot2)
 library(openNLP)
 library(udpipe)
 
-location <- "home" #set "home" or "work"
+location <- "work-lap" #set "home", "laptop", "work" or "work-lap"
 
 if (location == "home") {
   data_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_raw/"
@@ -19,8 +19,13 @@ if (location == "home") {
   work_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_work/"
   mat_path <- ""
   out_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/output/"
+} else if (location == "work-lap") {
+  data_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_raw/"
+  work_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_work/"
+  mat_path <- ""
+  out_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/output/"
 } else {
-  print("Specify location")
+    print("Specify location")
 }
 
 # JSON TO CSV
@@ -212,6 +217,10 @@ cons_tokens <- cons_tokens %>%
   distinct(title, tokens, .keep_all = TRUE)
 
 ## EDGE-LIST FORMAT? - HVORDAN GEMMES VEKTORER TIL AT BLIVE LÆST SOM LISTER I PYTHON?
+cons_tokens <- cons_tokens %>%
+  mutate(title = str_replace(title, "\\s-\\s\\d{1,5}", ""))
 
+setwd(work_path)
+write_csv(cons_tokens, "allcons_tokens_df.csv")
 
 ## UDLED NØGLEORD - TF-IDF?
