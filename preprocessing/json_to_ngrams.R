@@ -7,23 +7,23 @@ library(ggplot2)
 library(openNLP)
 library(udpipe)
 
-location <- "work-lap" #set "home", "laptop", "work" or "work-lap"
+location <- "work" #set "home", "laptop", "work" or "work-lap"
 
 if (location == "home") {
-  data_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_raw/"
-  work_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_work/"
+  data_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/"
+  work_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_work/"
   mat_path <- ""
-  out_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/output/"
+  out_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/output/"
 } else if (location == "work") {
-  data_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_raw/"
-  work_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_work/"
+  data_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/"
+  work_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_work/"
   mat_path <- ""
-  out_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/output/"
+  out_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/output/"
 } else if (location == "work-lap") {
-  data_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_raw/"
-  work_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/data_work/"
+  data_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/"
+  work_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_work/"
   mat_path <- ""
-  out_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_coma_E19/output/"
+  out_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/output/"
 } else {
     print("Specify location")
 }
@@ -64,6 +64,8 @@ text_cleanup <- function(text, regex = list(), punct = "”|’|‘|„|“|,") 
 mckin_texts_clean <- map(mckin_texts, text_cleanup, regex = mckin_fill_regex, punct = punct_filt)
 ey_texts_clean <- map(ey_texts, text_cleanup, regex = ey_fill_regex)
 bcg_texts_clean <- map(bcg_texts, text_cleanup)
+
+all_texts_clean <- c(mckin_texts_clean, ey_texts_clean, bcg_texts_clean)
 
 texts_to_df <- function(textlist) {
   text_df = as_tibble(matrix(textlist)) %>%
@@ -155,6 +157,24 @@ cons_bi_anno <- top_bigrams_tfidf %>%
 
 cons_bigrams <- cons_bi_anno$bigram         
 
+cons_anno_df <- data.frame(udpipe_annotate(udmodel_eng, unlist(all_texts_clean)))
+
+## WORDLISTS
+cons_words_df <- cons_anno_df %>%
+  select(token, lemma, upos, xpos, feats, dep_rel) %>%
+  distinct()
+
+wordlists <- list()
+
+for (wtype in unique(cons_words_df$upos)) {
+  words <- cons_anno_df %>%
+    filter(upos == wtype) %>%
+    select(token)
+  words <- list(unique(words$token))
+  wordlists <- append(wordlists, words)
+}
+names(wordlists) <- unique(cons_words_df$upos)
+
 ## NGRAMS
 
 cons_ngram <- cons_df %>%
@@ -188,8 +208,11 @@ bigram_insert <- function(tokens, bigrams) {
 
 
 ## PRE-PROCES NGRAMS-VECTOR: tal, symboler, stopord
-stop_custom <- c("")
-act_stop <- c(stopwords("english"), stop_custom)
+stop_custom <- c(wordlists$DET, wordlists$ADP, wordlists$PROPN, wordlists$AUX, wordlists$NUM, wordlists$VERB, wordlists$ADV, 
+                 wordlists$PRON, wordlists$SCONJ, wordlists$CCONJ, wordlists$PART, wordlists$ADJ)
+keep_words <- c(wordlists$NOUN)
+stop_custom <- str_to_lower(stop_custom[!(stop_custom %in% keep_words)])
+act_stop <- unique(c(stopwords("english"), stop_custom))
 
 tokenize_proces <- function(text, stopvec, bigrams){
   text_nopunct = removePunctuation(text)
@@ -216,11 +239,30 @@ cons_tokens$tokens <- map_chr(cons_tokens$tokens, paste, collapse = ", ")
 cons_tokens <- cons_tokens %>%
   distinct(title, tokens, .keep_all = TRUE)
 
+cons_tokens$tokens_vec <- map(str_split(cons_tokens$tokens, pattern = ", "), unlist)
+cons_tokens$tokens_len <- map_dbl(cons_tokens$tokens_vec, length)
+cons_tokens$firsttoken <- map_chr(cons_tokens$tokens_vec, 1)
+cons_tokens$tokens_vec <- NULL
+
+#cons_tokens_filt <- cons_tokens %>%
+#  group_by(sent_num, firsttoken) %>%
+#  top_n(1, tokens_len) %>%
+#  ungroup() %>%
+#  select(agency, title, sent_num, ngrams, tokens) %>%
+#  filter(!(is.na(ngrams)))
+
+cons_tokens_filt <- cons_tokens %>%
+  select(agency, title, sent_num, ngrams, tokens) %>%
+  filter(!(is.na(ngrams)))
+
+
 ## EDGE-LIST FORMAT? - HVORDAN GEMMES VEKTORER TIL AT BLIVE LÆST SOM LISTER I PYTHON?
-cons_tokens <- cons_tokens %>%
+cons_tokens_exp <- cons_tokens_filt %>%
   mutate(title = str_replace(title, "\\s-\\s\\d{1,5}", ""))
 
 setwd(work_path)
-write_csv(cons_tokens, "allcons_tokens_df.csv")
+#write_csv(cons_tokens, "allcons_tokens_df.csv")
+#write_csv(cons_tokens_exp, "allcons_tokens_nounadj_df.csv")
+write_csv(cons_tokens_exp, "allcons_tokens_noun_df.csv")
 
 ## UDLED NØGLEORD - TF-IDF?
