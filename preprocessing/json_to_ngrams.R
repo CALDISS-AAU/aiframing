@@ -32,11 +32,16 @@ if (location == "home") {
 filepath_mckin <- paste0(data_path, "mckin_articles.json")
 filepath_ey <- paste0(data_path, "ey_articles.json")
 filepath_bcg <- paste0(data_path, "bcg_articles.json")
+filepath_kpmg <- paste0(data_path, "kpmg_articles.json")
 
 mckin_texts <- map(fromJSON(filepath_mckin), stripWhitespace)
 ey_texts <- map(fromJSON(filepath_ey), stripWhitespace)
 bcg_texts <- map(fromJSON(filepath_bcg), stripWhitespace)
 
+kpmg_raw <- fromJSON(filepath_kpmg)
+kpmg_raw_df <- map_dfr(kpmg_raw, rbind.data.frame, stringsAsFactors = FALSE)
+kpmg_texts <- map(as.list(kpmg_raw_df$text), stripWhitespace)
+names(kpmg_texts) <- kpmg_raw_df$title
 
 ##TEXT CLEANUP##
 mckin_fill_regex <- list(mission = "Our mission is to help .* help clients in new and exciting ways",
@@ -64,8 +69,9 @@ text_cleanup <- function(text, regex = list(), punct = "”|’|‘|„|“|,") 
 mckin_texts_clean <- map(mckin_texts, text_cleanup, regex = mckin_fill_regex, punct = punct_filt)
 ey_texts_clean <- map(ey_texts, text_cleanup, regex = ey_fill_regex)
 bcg_texts_clean <- map(bcg_texts, text_cleanup)
+kpmg_texts_clean <- map(kpmg_texts, text_cleanup)
 
-all_texts_clean <- c(mckin_texts_clean, ey_texts_clean, bcg_texts_clean)
+all_texts_clean <- c(mckin_texts_clean, ey_texts_clean, bcg_texts_clean, kpmg_texts_clean)
 
 texts_to_df <- function(textlist) {
   text_df = as_tibble(matrix(textlist)) %>%
@@ -81,10 +87,13 @@ ey_df <- texts_to_df(ey_texts_clean) %>%
   mutate(agency = "Ernst & Young")
 bcg_df <- texts_to_df(bcg_texts_clean) %>%
   mutate(agency = "Boston Consulting Group")
+kpmg_df <- texts_to_df(kpmg_texts_clean) %>%
+  mutate(agency = "KPMG")
 
 ## COMBINED DF
 cons_df <- union(mckin_df, ey_df) %>%
-  union(bcg_df)
+  union(bcg_df) %>%
+  union(kpmg_df)
 
 
 ## FIND HYPPIGSTE BIGRAMS
@@ -265,4 +274,5 @@ setwd(work_path)
 #write_csv(cons_tokens_exp, "allcons_tokens_nounadj_df.csv")
 write_csv(cons_tokens_exp, "allcons_tokens_noun_df.csv")
 
+#allcons_tokens_df <- read_csv("allcons_tokens_noun_df.csv")
 ## UDLED NØGLEORD - TF-IDF?
