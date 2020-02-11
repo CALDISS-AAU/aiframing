@@ -103,20 +103,20 @@ alldata_df$text_clean <- map_chr(alldata_df$text, text_cleanup)
 stop_custom <- c("")
 act_stop <- c(stopwords("english"), stop_custom)
 
-text_preproces <- function(text, stopvec){
+text_bi_preprocess <- function(text, stopvec){
   text_nopunct = removePunctuation(text)
-  text_lower = str_to_lower(text_nopunct)
-  text_nonumb = removeNumbers(text_lower)
-  text_nostop = removeWords(text_nonumb, stopvec)
-  text_lenfilt = str_replace_all(text_nostop, "\\b[[:lower:]]{1,2}(\\s|$)|\\b[[:upper:]]{1}(\\s|$)", "")
-  return(text_lenfilt)
+  text_nonumb = removeNumbers(text_nopunct)
+  text_lenfilt = str_replace_all(text_nonumb, "\\b[[:lower:]]{1,2}(\\s|$)|\\b[[:upper:]]{1}(\\s|$)", "")
+  text_lower = str_to_lower(text_lenfilt)
+  text_nostop = removeWords(text_lower, stopvec)
+  return(text_nostop)
 }
 
-alldata_df <- alldata_df %>%
-  mutate(text_pp = text_preproces(text_clean, act_stop))
-
 cons_bigram <- alldata_df %>%
-  unnest_tokens(bigram, text_pp, token = "ngrams", n = 2) %>%
+  mutate(text_bi_pp = text_bi_preprocess(text_clean, act_stop))
+
+cons_bigram <- cons_bigram %>%
+  unnest_tokens(bigram, text_bi_pp, token = "ngrams", n = 2) %>%
   group_by(bigram) %>%
   summarize(count = n())
 
@@ -151,6 +151,15 @@ bigram_insert <- function(tokens, bigrams) {
 stop_custom <- c("")
 act_stop <- unique(c(stopwords("english"), stop_custom))
 
+text_preprocess <- function(text, stopvec){
+  text_nopunct = removePunctuation(text)
+  text_nonumb = removeNumbers(text_nopunct)
+  text_lenfilt = str_replace_all(text_nonumb, "\\b[[:lower:]]{1,2}(\\s|$)|\\b[[:upper:]]{1}(\\s|$)", "")
+  text_lower = str_to_lower(text_lenfilt)
+  text_nostop = removeWords(text_lower, stopvec)
+  return(text_nostop)
+}
+
 tokenize_raw_proces <- function(text){
   text_nopunct = removePunctuation(text)
   text_nonumb = removeNumbers(text_nopunct)
@@ -160,17 +169,9 @@ tokenize_raw_proces <- function(text){
   return(tokens)
 }
 
-tokenize_proces <- function(text, stopvec, bigrams){
-  text_nopunct = removePunctuation(text)
-  text_nonumb = removeNumbers(text_nopunct)
-  text_lenfilt = str_replace_all(text_nonumb, "\\b[[:lower:]]{1,2}(\\s|$)|\\b[[:upper:]]{1}(\\s|$)", "")
-  tokens = Boost_tokenizer(text_lenfilt)
-  
-  tokens_lower = str_to_lower(tokens)
-  
-  tokens_nostop = tokens_lower[!(tokens_lower %in% stopvec)]
-  
-  tokens_bicheck = bigram_insert(tokens_nostop, bigrams)
+tokenize_proces <- function(text, bigrams){
+  tokens = Boost_tokenizer(text)
+  tokens_bicheck = bigram_insert(tokens, bigrams)
   
   return(tokens_bicheck)
 }
@@ -178,8 +179,10 @@ tokenize_proces <- function(text, stopvec, bigrams){
 ## TOKENIZE
 
 alldata_df <- alldata_df %>%
-  mutate(tokens_raw = map(text_pp, tokenize_raw_proces),
-         tokens = map(text_pp, tokenize_proces, stopvec = act_stop, bigrams = bigrams)
+  mutate(text_pp = map_chr(text_clean, text_preprocess, stopvec = act_stop),
+         tokens_raw = map(text_clean, tokenize_raw_proces)
+         ) %>%
+  mutate(tokens = map(text_pp, tokenize_proces, bigrams = bigrams)
   )
 
 alldata_df$text_length <- map_dbl(alldata_df$tokens_raw, length)
