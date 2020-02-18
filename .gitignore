@@ -1,5 +1,6 @@
 data_raw/articles
-data_raw/backups
+data_raw_reinit/articles
+/backups_raw
 /data_work
 /output
 /.ipynb_checkpoints
