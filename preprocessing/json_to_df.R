@@ -10,20 +10,20 @@ library(lubridate)
 library(dplyr)
 library(feather)
 
-location <- "work" #set "home", "laptop", "work" or "work-lap"
+location <- "home" #set "home", "laptop", "work" or "work-lap"
 
 if (location == "home") {
-  data_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/"
+  data_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/articles/"
   work_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_work/"
   mat_path <- ""
   out_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/output/"
 } else if (location == "work") {
-  data_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/"
+  data_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/articles/"
   work_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_work/"
   mat_path <- ""
   out_path <- "D:/OneDrive/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/output/"
 } else if (location == "work-lap") {
-  data_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/"
+  data_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/articles/"
   work_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_work/"
   mat_path <- ""
   out_path <- "C:/Users/kgk/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/output/"
@@ -36,9 +36,10 @@ filepath_mckin <- paste0(data_path, "mckin_articles.json")
 filepath_ey <- paste0(data_path, "ey_articles.json")
 filepath_bcg <- paste0(data_path, "bcg_articles.json")
 filepath_kpmg <- paste0(data_path, "kpmg_articles.json")
+filepath_bain <- paste0(data_path, "bain_articles.json")
 
-mckin_texts <- map(fromJSON(filepath_mckin), stripWhitespace)
-bcg_texts <- map(fromJSON(filepath_bcg), stripWhitespace)
+#bcg_texts <- map(fromJSON(filepath_bcg), stripWhitespace)
+
 
 text_import <- function(filepath){
   data_list = list()
@@ -53,6 +54,11 @@ text_import <- function(filepath){
     texts_df$article.date = dmy(texts_df$article.date)
   } else if (texts_df$agency[1] == "EY") {
     texts_df$article.date = dmy(texts_df$article.date)
+  } else if (texts_df$agency[1] == "Bain & Company") {
+    texts_df$article.date = ymd(floor_date(ymd_hms(texts_df$article.date), unit = "days"))
+    texts_df$modified.date = ymd(floor_date(ymd_hms(texts_df$modified.date), unit = "days"))
+  } else if (texts_df$agency[1] == "McKinsey") {
+    texts_df$article.date = mdy(texts_df$article.date)
   }
   
   data_list = list(texts_raw, texts_df, texts)
@@ -62,8 +68,8 @@ text_import <- function(filepath){
 
 kpmg_import <- text_import(filepath_kpmg)
 ey_import <- text_import(filepath_ey)
-
-alldata_df <- dplyr::union(kpmg_import$df, ey_import$df)
+bain_import <- text_import(filepath_bain)
+mckin_import <- text_import(filepath_mckin)
 
 ##TEXT CLEANUP##
 mckin_fill_regex <- list(mission = "Our mission is to help .* help clients in new and exciting ways",
@@ -80,24 +86,61 @@ ey_fill_regex <- list(read = "(\\d{1,2} minute .*? \\d{4})",
                       shareview = "Share your views \\<.*\\>(?=.?Summary)",
                       joinconvo = "Logo Join the conversation")
 
-kpmg_fill_regex <- list(powered = ".*When everything changes so quickly you need the latest financial data, in real-time, to plan successful future strategies\\. Powered Enterprise Finance delivers the financial insights for you to answer questions, such as.*solid platform for continuing evolution and progress.*"
-)
+kpmg_fill_regex <- list(powered = ".*When everything changes so quickly you need the latest financial data, in real-time, to plan successful future strategies\\. Powered Enterprise Finance delivers the financial insights for you to answer questions, such as.*solid platform for continuing evolution and progress.*")
+
+bain_fill_regex <- list(glance = "At a Glance",
+                        appear = "This article originally appeared on the .*? (?=\\.)")
 
 
 punct_filt <- "”|’|‘|„|“|,"
 
-regex_list <- c(mckin_fill_regex, ey_fill_regex, kpmg_fill_regex)
+regex_list <- c(mckin_fill_regex, ey_fill_regex, kpmg_fill_regex, bain_fill_regex)
 
-text_cleanup <- function(text, regex = regex_list, punct = "”|’|‘|„|“|,") {
-  text = stripWhitespace(text)
+#text_cleanup <- function(text, regex = regex_list, punct = "”|’|‘|„|“|,") {
+#  text = stripWhitespace(text)
+#  for (regex in regex) {
+#    text = str_replace_all(text, regex, "")
+#  }
+#  text_nopunct = str_replace_all(text, punct, "")
+#  return(text_nopunct)
+#}
+
+text_cleanup <- function(import, punct = "”|’|‘|„|“|,") {
+  df = import$df
+  text = stripWhitespace(df$text)
+  agency = df$agency[1]
+  
+  if (agency == "KPMG") {
+    regex = kpmg_fill_regex
+  } else if (agency == "EY") {
+    regex = ey_fill_regex
+  } else if (agency == "Bain & Company") {
+    regex = bain_fill_regex
+  } else if (agency == "McKinsey") {
+    regex = mckin_fill_regex
+  }
+  
   for (regex in regex) {
     text = str_replace_all(text, regex, "")
   }
+  
   text_nopunct = str_replace_all(text, punct, "")
-  return(text_nopunct)
+  
+  df$text_clean = text_nopunct
+  
+  import$df = df
+  
+  return(import)
 }
 
-alldata_df$text_clean <- map_chr(alldata_df$text, text_cleanup)
+kpmg_import_clean <- text_cleanup(kpmg_import)
+ey_import_clean <- text_cleanup(ey_import)
+bain_import_clean <- text_cleanup(bain_import)
+mckin_import_clean <- text_cleanup(mckin_import)
+
+alldata_df <- dplyr::union_all(kpmg_import_clean$df, ey_import_clean$df) %>%
+  dplyr::union_all(bain_import_clean$df) %>%
+  dplyr::union_all(mckin_import_clean$df)
 
 ## FIND HYPPIGSTE BIGRAMS
 stop_custom <- c("")
@@ -193,5 +236,5 @@ alldata_df$tokens_raw <- map_chr(alldata_df$tokens_raw, paste, collapse = ", ")
 alldata_df$tokens <- map_chr(alldata_df$tokens, paste, collapse = ", ")
 
 setwd(work_path)
-write_feather(alldata_df, "agency_data_20200211.feather")
-write_csv(alldata_df, "agency_data_20200211.csv")
+write_feather(alldata_df, "agency_data_20200218.feather")
+write_csv(alldata_df, "agency_data_20200218.csv")

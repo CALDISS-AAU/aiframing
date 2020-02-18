@@ -3,6 +3,7 @@ data_raw/backups
 /data_work
 /output
 /.ipynb_checkpoints
-/analyse/.ipynb_checkpoints
-/scrapers/.ipynb_checkpoints
+*/.ipynb_checkpoints
+analyse/.ipynb_checkpoints
+scrapers/.ipynb_checkpoints/*.ipynb
 .Rhistory
