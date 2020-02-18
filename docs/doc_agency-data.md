@@ -42,6 +42,22 @@ The KPMG scraper starts at KPMG's subpage about 'Data-driven technologies', as t
 
 The URL's for the individual articles ("insights") are gathered and the individual articles parsed. The scraper is built to scrape the material related to the actual content of the article while avoiding elements related to the general structure of the site.
 
+### McKinsey scraper
+
+The McKinsey scraper starts at a URL sending a search query for "artificial intelligence": https://www.mckinsey.com/search?q=artificial+intelligence
+
+The URL's for the individual results are gathered and the individual pages parsed. The pages contain various contents: articles, blog post, podcast or video transcriptions, report excerpts, profiles etc. All content types except for profiles are scraped. Information on the content type is stored in the variable `text_type`.
+
+The scraper is built to scrape the material related to the actual content of the article while avoiding elements related to the general structure of the site.
+
+### Bain & Company scraper
+
+The Bain & Company scraper starts at a URL sending a search query for "artificial intelligence" filtering for content types "articles" and "briefs": https://www.bain.com/search/?searchValue=artificial+intelligence&filters=%7Ctypes%28426%2C427%29&pageNumber=0&sortValue=date
+
+The URL's for the individual results are gathered and the individual pages parsed. Information on the content type is stored in the variable `text_type`.
+
+The scraper is built to scrape the material related to the actual content of the article while avoiding elements related to the general structure of the site.
+
 ## Variables
 
 The dataset contains the following variables:
@@ -49,8 +65,10 @@ The dataset contains the following variables:
 - url
 - title
 - article.date
+- modified.date
 - download.date
 - text
+- text.type
 - agency
 - text_clean
 - text_pp
@@ -70,6 +88,10 @@ Contains the title of the text.
 
 Contains the date the article was published.
 
+**modified.date**
+
+Contains the date the article was last modified (if available).
+
 **download.date**
 
 Contains the date the text was last scraped.
@@ -77,6 +99,10 @@ Contains the date the text was last scraped.
 **text**
 
 The raw text of the article.
+
+**text.type**
+
+Contains information about the type of text as labelled by the consultancy agency (if available).
 
 **agency**
 
