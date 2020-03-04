@@ -6,5 +6,6 @@ data_raw_reinit/articles
 /.ipynb_checkpoints
 */.ipynb_checkpoints
 analyse/.ipynb_checkpoints
-scrapers/.ipynb_checkpoints/*.ipynb
+scrapers/.ipynb_checkpoints
+scrapers/.ipynb_checkpoints/bcg_scraper-checkpoint.ipynb
 .Rhistory
