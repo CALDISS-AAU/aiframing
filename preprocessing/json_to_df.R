@@ -10,7 +10,7 @@ library(lubridate)
 library(dplyr)
 library(feather)
 
-location <- "home" #set "home", "laptop", "work" or "work-lap"
+location <- "work" #set "home", "laptop", "work" or "work-lap"
 
 if (location == "home") {
   data_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/articles/"
@@ -37,13 +37,21 @@ filepath_ey <- paste0(data_path, "ey_articles.json")
 filepath_bcg <- paste0(data_path, "bcg_articles.json")
 filepath_kpmg <- paste0(data_path, "kpmg_articles.json")
 filepath_bain <- paste0(data_path, "bain_articles.json")
+filepath_pwc <- paste0(data_path, "pwc_articles.json")
 
-#bcg_texts <- map(fromJSON(filepath_bcg), stripWhitespace)
-
+null_to_na <- function(a_list) {
+  for (i in 1:length(a_list)) {
+    if (is.null(a_list[[i]])) {
+      a_list[[i]] = NA
+    }
+  }
+  return(a_list)
+}
 
 text_import <- function(filepath){
   data_list = list()
   texts_raw = fromJSON(filepath)
+  texts_raw = map(texts_raw, null_to_na)
   texts_df = map_dfr(texts_raw, rbind.data.frame, stringsAsFactors = FALSE)
   texts = map(as.list(texts_df$text), stripWhitespace)
   names(texts) = texts_df$title
@@ -59,6 +67,10 @@ text_import <- function(filepath){
     texts_df$modified.date = ymd(floor_date(ymd_hms(texts_df$modified.date), unit = "days"))
   } else if (texts_df$agency[1] == "McKinsey") {
     texts_df$article.date = mdy(texts_df$article.date)
+  } else if (texts_df$agency[1] == "PwC") {
+    texts_df$article.date = ymd(floor_date(ymd_hms(texts_df$article.date), unit = "days"))
+  } else if (texts_df$agency[1] == "BCG") {
+    texts_df$article.date = mdy(texts_df$article.date)
   }
   
   data_list = list(texts_raw, texts_df, texts)
@@ -70,6 +82,9 @@ kpmg_import <- text_import(filepath_kpmg)
 ey_import <- text_import(filepath_ey)
 bain_import <- text_import(filepath_bain)
 mckin_import <- text_import(filepath_mckin)
+bcg_import <- text_import(filepath_bcg)
+pwc_import <- text_import(filepath_pwc)
+
 
 ##TEXT CLEANUP##
 mckin_fill_regex <- list(mission = "Our mission is to help .* help clients in new and exciting ways",
@@ -91,10 +106,12 @@ kpmg_fill_regex <- list(powered = ".*When everything changes so quickly you need
 bain_fill_regex <- list(glance = "At a Glance",
                         appear = "This article originally appeared on the .*? (?=\\.)")
 
+pwc_fill_regex <- list(functions = "if\\(.*\\).*\\{.*",
+                       functions2 = "\\.[a-z]+\\-[a-z]+\\s\\..*")
 
 punct_filt <- "”|’|‘|„|“|,"
 
-regex_list <- c(mckin_fill_regex, ey_fill_regex, kpmg_fill_regex, bain_fill_regex)
+regex_list <- c(mckin_fill_regex, ey_fill_regex, kpmg_fill_regex, bain_fill_regex, pwc_fill_regex)
 
 #text_cleanup <- function(text, regex = regex_list, punct = "”|’|‘|„|“|,") {
 #  text = stripWhitespace(text)
@@ -105,7 +122,7 @@ regex_list <- c(mckin_fill_regex, ey_fill_regex, kpmg_fill_regex, bain_fill_rege
 #  return(text_nopunct)
 #}
 
-text_cleanup <- function(import, punct = "”|’|‘|„|“|,") {
+text_cleanup <- function(import, punct = "”|’|‘|„|“|,", regex = list()) {
   df = import$df
   text = stripWhitespace(df$text)
   agency = df$agency[1]
@@ -118,6 +135,8 @@ text_cleanup <- function(import, punct = "”|’|‘|„|“|,") {
     regex = bain_fill_regex
   } else if (agency == "McKinsey") {
     regex = mckin_fill_regex
+  } else if (agency == "PwC") {
+    regex = pwc_fill_regex
   }
   
   for (regex in regex) {
@@ -137,10 +156,14 @@ kpmg_import_clean <- text_cleanup(kpmg_import)
 ey_import_clean <- text_cleanup(ey_import)
 bain_import_clean <- text_cleanup(bain_import)
 mckin_import_clean <- text_cleanup(mckin_import)
+bcg_import_clean <- text_cleanup(bcg_import)
+pwc_import_clean <- text_cleanup(pwc_import)
 
 alldata_df <- dplyr::union_all(kpmg_import_clean$df, ey_import_clean$df) %>%
   dplyr::union_all(bain_import_clean$df) %>%
-  dplyr::union_all(mckin_import_clean$df)
+  dplyr::union_all(mckin_import_clean$df) %>%
+  dplyr::union_all(bcg_import_clean$df) %>%
+  dplyr::union_all(pwc_import_clean$df)
 
 ## FIND HYPPIGSTE BIGRAMS
 stop_custom <- c("")
@@ -236,5 +259,5 @@ alldata_df$tokens_raw <- map_chr(alldata_df$tokens_raw, paste, collapse = ", ")
 alldata_df$tokens <- map_chr(alldata_df$tokens, paste, collapse = ", ")
 
 setwd(work_path)
-write_feather(alldata_df, "agency_data_20200218.feather")
-write_csv(alldata_df, "agency_data_20200218.csv")
+write_feather(alldata_df, "agency_data_20200304.feather")
+write_csv(alldata_df, "agency_data_20200304.csv")
