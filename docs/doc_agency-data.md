@@ -1,6 +1,6 @@
 # Documentation for dataset: agency-data
 
-*Last edited: 2020-02-11*
+*Last edited: 2020-03-11*
 
 GitHub repo: https://github.com/CALDISS-AAU/aiframing (currently on branch raw_update)
 
@@ -10,10 +10,16 @@ GitHub repo: https://github.com/CALDISS-AAU/aiframing (currently on branch raw_u
 
 The dataset consists of scraped articles of various consultant agencies. The current version contains articles from the following consultant agencies:
 
-- KPMG
-- EY
+- Ernst & Young (EY): https://www.ey.com/en_gl
+- KPMG: https://home.kpmg/xx/en/home.html
+- PricewaterhouseCoopers (PwC): https://www.pwc.com/
+- McKinsey: https://www.mckinsey.com/
+- Boston Consulting Group: https://www.bcg.com/
+- Bain & Company: https://www.bain.com/
+- Accenture: https://www.accenture.com/us-en
+- Capgemini: https://www.capgemini.com/
 
-A .csv and .feather version of the dataset is stored.
+A .csv and .feather version of the dataset is stored. The current version contains 2.633 texts with a mean length of 1.546 words.
 
 ## About the pre-processing and tokenizing
 
@@ -21,14 +27,14 @@ The articles are pre-processed and tokenized using the script: json_to_df.R (loc
 
 The script compiles a dataset consisting of the raw texts, metadata as well as various pre-processed and tokenized versions of the texts (see the 'Variables' section).
 
-*NOTE on the tokenization (`tokens` variable):* In order to keep the most common bigrams as individual tokens ('artificial intelligence', 'machine learning', 'data analytics'), part of the script looks for the 50 most common bigrams (based on count) and keeps these as tokens in the `tokens` variable instead of the individual words.
+*NOTE on the tokenization (`tokens` variable):* In order to keep the most common bigrams as individual tokens ('artificial intelligence', 'machine learning', 'data analytics'), part of the script looks for the 50 most common bigrams (based on count) across all texts and keeps these as tokens in the `tokens` variable instead of the individual words.
 The code is rather crude and does in its current state also keep some bigrams that are not meaningful as bigrams. This is expected to be corrected with the addition of more texts.
 
-## Datacollection
+## Data collection: Scraper documentation
 
-The data is collected via individually build scrapers for each consultant agency website. Setting up the comparable parameters for collection is difficult as the different consultant agencies uses different forms of articles. 
+The data is collected via individually build scrapers for each consultant agency website. Setting up the comparable parameters for collection is difficult as the different consultant agencies post different forms of content and use descriptions like "insights", "articles", "blog posts" etc. differently. 
 
-The scrapers are build to gather the texts (articles, blogposts, briefs and the like) which are themed around "artificial intelligence"
+The scrapers are build to gather the texts (insights, articles, blog posts, briefs and the like) which are themed around "artificial intelligence" - mostly by using the site's own search engine.
 
 ### EY scraper
 
@@ -58,6 +64,40 @@ The URL's for the individual results are gathered and the individual pages parse
 
 The scraper is built to scrape the material related to the actual content of the article while avoiding elements related to the general structure of the site.
 
+### Boston Consulting Group (BCG) scraper
+
+The BCG scraper starts at a URL sending a search query for "artificial intelligence" filtering for content types "publications": [https://www.bcg.com/search.aspx?q=Artificial%20Intelligence&sort=date_desc&tax-content_type[0][0]=Publication](https://www.bcg.com/search.aspx?q=Artificial%20Intelligence&sort=date_desc&tax-content_type[0][0]=Publication)
+
+The URL's for the individual results are gathered and the individual pages parsed. Information on the content type is stored in the variable `text_type`.
+
+The scraper is built to scrape the material related to the actual content of the article while avoiding elements related to the general structure of the site.
+
+### Pricewatercoopers (PWC) scraper
+
+The PWC scraper starts at PWC's subpage about artificial intelligence: https://www.pwc.com/gx/en/issues/data-and-analytics/artificial-intelligence.html
+
+The URL's for the individual articles on the site are gathered and the individual articles parsed. Information on the content type is stored in the variable `text_type`. 
+
+The scraper is built to scrape the material related to the actual content of the article while avoiding elements related to the general structure of the site.
+
+### Accenture scraper
+
+The Accenture scraper starts at a URL sending a search query for "artificial intelligence" filtering by content type "insight": https://www.accenture.com/us-en/search/results?srk=Artificial%20Intelligence&pg=1&sb=1&filter=Insights
+
+The URL's for the individual articles on the site are gathered and the individual articles parsed. Information on the content type is stored in the variable `text_type`. 
+
+The scraper is built to scrape the material related to the actual content of the article while avoiding elements related to the general structure of the site.
+
+### Capgemini scraper
+
+The Capgemini scraper starts at a URL sending a search query for "artificial intelligence" on the Capgemini website: https://www.capgemini.com/?s=artificial+intelligence
+
+When gathering the URL's, only results of type 'post' or 'article' are retained.
+
+The individual texts are parsed. Information on the content type is stored in the variable `text_type`. 
+
+The scraper is built to scrape the material related to the actual content of the article while avoiding elements related to the general structure of the site.
+
 ## Variables
 
 The dataset contains the following variables:
@@ -76,45 +116,45 @@ The dataset contains the following variables:
 - tokens
 - text_length
 
-**url**
+### url
 
 Contains the URL of the scraped text.
 
-**title**
+### title
 
 Contains the title of the text.
 
-**article.date**
+### article.date
 
 Contains the date the article was published.
 
-**modified.date**
+### modified.date
 
 Contains the date the article was last modified (if available).
 
-**download.date**
+### download.date
 
 Contains the date the text was last scraped.
 
-**text**
+### text
 
 The raw text of the article.
 
-**text.type**
+### text.type
 
 Contains information about the type of text as labelled by the consultancy agency (if available).
 
-**agency**
+### agency
 
 The consultant agency that published the article.
 
-**text_clean**
+### text_clean
 
 The texts cleaned of "filler" text and stripped of whitespace (newline characters, tabulate characters etc.). 
 
 Filler text is understood as standard text elements that appear in almost all texts from a specific consultant agency. This includes mission statements, read more sections, share on social media functions and so on.
 
-**text_pp**
+### text_pp
 
 Contains a pre-processed, non-tokenized version of the text (from `text_clean`). 
 
@@ -127,7 +167,7 @@ The text from `text_clean` is preprocessed in the following steps (in order):
 5. Text converted to lowercase
 6. Stopwords removed (standard list for english stopwords from the R `tm` package is used)
 
-**tokens_raw**
+### tokens_raw
 
 List of tokens in the text based on the text in `text_clean`. 
 
@@ -137,7 +177,7 @@ The text is tokenized in the following steps (in order):
 2. Numbers removed
 3. Tokenized using `Boost_tokenizer` (from the R `tm` package)
 
-**tokens**
+### tokens
 
 List of tokens in the text based on the text in `text_pp`.
 
