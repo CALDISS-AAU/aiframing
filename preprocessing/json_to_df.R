@@ -10,7 +10,7 @@ library(lubridate)
 library(dplyr)
 library(feather)
 
-location <- "work" #set "home", "laptop", "work" or "work-lap"
+location <- "home" #set "home", "laptop", "work" or "work-lap"
 
 if (location == "home") {
   data_path <- "D:/OneDrive - Aalborg Universitet/CALDISS_projects/aiframing_cim_E19-F20/data_raw/articles/"
@@ -38,6 +38,8 @@ filepath_bcg <- paste0(data_path, "bcg_articles.json")
 filepath_kpmg <- paste0(data_path, "kpmg_articles.json")
 filepath_bain <- paste0(data_path, "bain_articles.json")
 filepath_pwc <- paste0(data_path, "pwc_articles.json")
+filepath_acc <- paste0(data_path, "accenture_articles.json")
+filepath_cap <- paste0(data_path, "capgemini_articles.json")
 
 null_to_na <- function(a_list) {
   for (i in 1:length(a_list)) {
@@ -71,6 +73,10 @@ text_import <- function(filepath){
     texts_df$article.date = ymd(floor_date(ymd_hms(texts_df$article.date), unit = "days"))
   } else if (texts_df$agency[1] == "BCG") {
     texts_df$article.date = mdy(texts_df$article.date)
+  } else if (texts_df$agency[1] == "Accenture") {
+    texts_df$article.date = ymd(texts_df$article.date)
+  } else if (texts_df$agency[1] == "Capgemini") {
+    texts_df$article.date = ymd(texts_df$article.date)
   }
   
   data_list = list(texts_raw, texts_df, texts)
@@ -84,7 +90,8 @@ bain_import <- text_import(filepath_bain)
 mckin_import <- text_import(filepath_mckin)
 bcg_import <- text_import(filepath_bcg)
 pwc_import <- text_import(filepath_pwc)
-
+acc_import <- text_import(filepath_acc)
+cap_import <- text_import(filepath_cap)
 
 ##TEXT CLEANUP##
 mckin_fill_regex <- list(mission = "Our mission is to help .* help clients in new and exciting ways",
@@ -158,12 +165,16 @@ bain_import_clean <- text_cleanup(bain_import)
 mckin_import_clean <- text_cleanup(mckin_import)
 bcg_import_clean <- text_cleanup(bcg_import)
 pwc_import_clean <- text_cleanup(pwc_import)
+acc_import_clean <- text_cleanup(acc_import)
+cap_import_clean <- text_cleanup(cap_import)
 
 alldata_df <- dplyr::union_all(kpmg_import_clean$df, ey_import_clean$df) %>%
   dplyr::union_all(bain_import_clean$df) %>%
   dplyr::union_all(mckin_import_clean$df) %>%
   dplyr::union_all(bcg_import_clean$df) %>%
-  dplyr::union_all(pwc_import_clean$df)
+  dplyr::union_all(pwc_import_clean$df) %>%
+  dplyr::union_all(acc_import_clean$df) %>%
+  dplyr::union_all(cap_import_clean$df)
 
 ## FIND HYPPIGSTE BIGRAMS
 stop_custom <- c("")
@@ -259,5 +270,5 @@ alldata_df$tokens_raw <- map_chr(alldata_df$tokens_raw, paste, collapse = ", ")
 alldata_df$tokens <- map_chr(alldata_df$tokens, paste, collapse = ", ")
 
 setwd(work_path)
-write_feather(alldata_df, "agency_data_20200304.feather")
-write_csv(alldata_df, "agency_data_20200304.csv")
+write_feather(alldata_df, "agency_data_20200311.feather")
+write_csv(alldata_df, "agency_data_20200311.csv")
