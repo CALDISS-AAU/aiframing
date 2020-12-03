@@ -1,0 +1,21 @@
+﻿regex pwc
+
+Regex til side som: view-source:https://www.pwc.com/gx/en/industries/financial-services/asset-management/publications.html (linje 1773)
+
+find: \\x22href
+replace: "\n"
+
+find: \\
+replace: ""
+
+find: x22,x22textx22:x22.*?{x22indexx22:..
+replace: ""
+
+find: x22,x22relativeHref.*?(?=\n)
+replace: ""
+
+find: x22:x22
+replace: ""
+
+find: u002D
+replace: "-"
