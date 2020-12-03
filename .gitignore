@@ -1,7 +1,6 @@
 /data/raw/
 /data/work/
 /output
-/.ipynb_checkpoints
-*/.ipynb_checkpoints
+*.ipynb_checkpoints
 .Rhistory
 /personal
