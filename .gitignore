@@ -1,10 +1,10 @@
+/data
 data_raw/articles
 data_raw_reinit/articles
 /backups_raw
 /data_work
 /output
-/.ipynb_checkpoints
-*/.ipynb_checkpoints
+*.ipynb_checkpoints*
 analyse/.ipynb_checkpoints
 scrapers/.ipynb_checkpoints
 scrapers/.ipynb_checkpoints/bcg_scraper-checkpoint.ipynb
